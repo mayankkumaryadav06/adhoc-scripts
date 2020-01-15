@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>AWS Resources</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha256-LA89z+k9fjgMKQ/kq4OO2Mrf8VltYml/VES+Rg0fh20=" crossorigin="anonymous" />
+  <style>
+    /* spinner from Bootstrap v4.1 https://github.com/twbs/bootstrap/pull/22960 */
+    @keyframes spinner-border {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner-border {
+      position: relative;
+      display: inline-block;
+      width: 2rem;
+      height: 2rem;
+      overflow: hidden;
+      text-indent: -999em;
+      vertical-align: text-bottom;
+      border: .25em solid;
+      border-color: currentColor transparent currentColor currentColor;
+      border-radius: 50%;
+      animation-name: spinner-border;
+      animation-duration: .75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+
+    .spinner-border-reverse {
+      border-color: transparent currentColor transparent transparent;
+    }
+
+    .spinner-border-reverse::after {
+      position: absolute;
+      top: -.25em;
+      right: -.25em;
+      bottom: -.25em;
+      left: -.25em;
+      display: inline-block;
+      content: "";
+      border: .25em solid rgba(0, 0, 0, .1);
+      border-radius: 50%;
+    }
+
+    .spinner-border-sm {
+      width: 1rem;
+      height: 1rem;
+      border-width: 10em;
+
+    }
+
+    .spinner-border-sm.spinner-border-reverse::after {
+      border-width: .2em;
+    }
+  </style>
+  <style>
+    .side-bar {
+      position:sticky;
+      top: 4rem;
+      z-index: 1000;
+      height: calc(100vh - 4rem);
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid"><!-- container -->
+
+    <div class="navbar sticky-top navbar-expand-md navbar-light bg-light"><!-- navbar -->
+      <a href="#" class="navbar-brand">AWS Resource Details</a>
+
+      <form id="aws-credentials" role="form" class="form-inline col"><!-- credentials -->
+        <div class="form-row col">
+          <div class="col col-5 align-self-start">
+            <div class="input-group input-group-sm">
+              <div class="input-group-prepend">
+                <span class="input-group-text">AWS Key ID</span>
+              </div>
+              <input type="text" tabindex="1" id="aws-access-key-id" class="form-control form-control-sm" placeholder="">
+            </div>
+          </div>
+          <div class="col col-5">
+            <div class="input-group input-group-sm">
+              <div class="input-group-prepend">
+                <span class="input-group-text">Secret</span>
+              </div>
+              <input type="password" tabindex="2" id="aws-access-secret-key" class="form-control form-control-sm" placeholder="">
+            </div>
+          </div>
+          <div class="col col-1 align-self-end">
+            <div class="input-group input-group-sm">
+              <button type="submit" tabindex="7" id="verify-aws-credentials" class="btn btn-outline-primary btn-sm form-control form-control-sm" data-toggle="button" aria-pressed="false" autocomplete="off">confirm</button>
+            </div>
+          </div>
+        </div>
+      </form><!-- /credentials -->
+
+      <form id="aws-credentials-arn-form" class="form-inline col" style="display:none"><!-- credentials-arn -->
+        <div class="form-row col">
+          <div class="col col-12 align-self-start">
+            <div class="input-group input-group-sm">
+              <div class="input-group-prepend bg-light">
+                <span class="input-group-text bg-light">Credentials ARN</span>
+              </div>
+              <input type="text" id="aws-credentials-arn" readonly class="form-control form-control-sm">
+              <div class="input-group-append">
+                <button type="button" id="aws-credentials-drop" class="btn btn-dark" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form><!-- /credentials-arn -->
+
+    </div><!-- /navbar -->
+
+    <div id="alerts"></div>
+
+    <div class="row mt-2">
+      <div class="col-2 side-bar">
+        <ul id="aws-region-tabs" class="nav flex-sm-column nav-pills nav-tabs" role="tablist" aria-orientation="vertical"></ul><!-- regions -->
+      </div>
+      <div class="col-10">
+        <div id="aws-inventory" class="tab-content"></div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+
+  </body>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.13.0/umd/popper.min.js" integrity="sha256-pS96pU17yq+gVu4KBQJi38VpSuKN7otMrDQprzf/DWY=" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha256-5+02zu5UULQkO7w1GIr6vftCgMfFdZcAHeDtFnKZsBs=" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jmespath/0.15.0/jmespath.min.js" integrity="sha256-qWz+UNAHPTcBryGj4/YRC+NPcwjGx135OqBzZrMRY/A=" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/aws-sdk/2.600.0/aws-sdk.js" integrity="sha256-CuROlo3vhO9/aWyNPE4uaTF2smkX0KtqI3qCjoaKIYc=" crossorigin="anonymous"></script>
+	<script>
+		$(function () {
+			// bootstrap utils
+			$(".alert").alert();
+			$(".collapse").collapse();
+			$('[data-toggle="tooltip"]').tooltip();
+			$("#aws-credentials input").val("");
+
+			var awsQueries = [
+				{ service: "CloudTrail",
+				api: "describeTrails",
+				title: "CloudTrail Trails",
+				id: "cloudtrail-trails",
+				jmespath: "trailList",
+				headings: ["Name", "S3BucketName", "SnsTopicName", "IncludeGlobalServiceEvents", "IsMultiRegionTrail", "HomeRegion", "HasCustomEventSelectors"]
+				},
+				{ service: "CloudWatch",
+				api: "describeAlarms",
+				title: "CloudWatch Alarms",
+				id: "cloudwatch-alarms",
+				jmespath: "MetricAlarms",
+				headings: ["AlarmName", "AlarmDescription", "MetricName", "Statistic", "Dimensions[].Name", "Period", "Unit", "EvaluationPeriods", "DatapointsToAlarm", "Threshold", "TreatMissingData", "ActionsEnabled", "OKActions[]", "AlarmActions[]", "InsufficientDataActions[]", "StateValue"]
+				},
+				{ service: "CloudWatch",
+				api: "listDashboards",
+				title: "CloudWatch Dashboards",
+				id: "cloudwatch-dashboards",
+				jmespath: "DashboardEntries",
+				headings: ["DashboardName", "LastModified", "Size", "DashboardArn"]
+				},
+				{ service: "ConfigService",
+				api: "describeConfigRules",
+				title: "Config Service Rules",
+				id: "config-rules",
+				jmespath: "ConfigRules",
+				headings: ["ConfigRuleName", "ConfigRuleArn", "ConfigRuleId", "Description", "Source.Owner", "ConfigRuleState", "MaximumExecutionFrequency"]
+				},
+				{ service: "ConfigService",
+				api: "describeConfigRuleEvaluationStatus",
+				title: "Config Service Rule Evaluation Statuses",
+				id: "config-rules",
+				jmespath: "ConfigRulesEvaluationStatus",
+				headings: ["ConfigRuleName", "ConfigRuleId", "LastSuccessfulInvocationTime", "LastFailedInvocationTime", "LastSuccessfulEvaluationTime", "LastFailedEvaluationTime", "FirstActivatedTime", "LastErrorCode", "LastErrorMessage"]
+				},
+				{ service: "ConfigService",
+				api: "describeConfigurationRecorders",
+				title: "Config Service Recorders",
+				id: "config-recorders",
+				jmespath: "ConfigurationRecorders",
+				headings: ["name", "roleARN", "recordingGroup.allSupported", "recordingGroup.resourceTypes"]
+				},
+				{ service: "ConfigService",
+				api: "describeConfigurationRecorderStatus",
+				title: "Config Service Recorder Statuses",
+				id: "config-recorder-statuses",
+				jmespath: "ConfigurationRecordersStatus",
+				headings: ["name", "lastStartTime", "lastStopTime", "recording", "lastStatus", "lastErrorcode", "lastErrorMessage", "lastStatusChangeTime"]
+				},
+				{ service: "ConfigService",
+				api: "describeDeliveryChannels",
+				title: "Config Service Delivery Channels",
+				id: "config-delivery-channels",
+				jmespath: "DeliveryChannels",
+				headings: ["name", "s3BucketName", "s3KeyPrefix", "snsTopicARN", "configSnapshotDeliveryProperties.deliveryFrequency"]
+				},
+				{ service: "ConfigService",
+				api: "describeDeliveryChannelStatus",
+				title: "Config Service Delivery Channel Statuses",
+				id: "config-delivery-channel-statuses",
+				jmespath: "DeliveryChannelsStatus",
+				headings: ["name", "configSnapshotDeliveryInfo.lastStatus", "configHistoryDeliveryInfo.lastStatus", "configStreamDeliveryInfo.lastStatus"]
+				},
+				{ service: "ELB",
+				api: "describeLoadBalancerPolicyTypes",
+				title: "Classic ELB Policy Types",
+				id: "elb-policy-types",
+				jmespath: "PolicyTypeDescriptions",
+				headings: ["PolicyTypeName", "Description"]
+				},
+				{ service: "ELB",
+				api: "describeLoadBalancerPolicies",
+				title: "Classic ELB Policies",
+				id: "elb-policies",
+				jmespath: "PolicyDescriptions",
+				headings: ["PolicyTypeName", "PolicyName"]
+				},
+				{ service: "ELB",
+				api: "describeLoadBalancers",
+				title: "Classic ELB Load Balancers",
+				id: "elb-load-balancers",
+				jmespath: "LoadBalancerDescriptions",
+				headings: ["LoadBalancerName", "AvailabilityZones[]", "VPCId", "Subnets[]", "CreatedTime", "Scheme"]
+				},
+				{ service: "ELBv2",
+				api: "describeLoadBalancers",
+				title: "ELB v2 Load Balancers",
+				id: "elbv2-load-balancers",
+				jmespath: "LoadBalancers",
+				headings: ["LoadBalancerName", "Type", "Scheme", "VpcId", "State", "AvailabilityZones[].ZoneName", "AvailabilityZones[].SubnetId", "IpAddressType"]
+				},
+				{ service: "ELBv2",
+				api: "describeSSLPolicies",
+				title: "ELB v2 SSL Policies",
+				id: "elbv2-ssl-policies",
+				jmespath: "SslPolicies",
+				headings: ["Name", "SslProtocols[]"]
+				},
+				{ service: "ELBv2",
+				api: "describeTargetGroups",
+				title: "ELB v2 Target Groups",
+				id: "elbv2-target-groups",
+				jmespath: "TargetGroups",
+				headings: ["TargetGroupName", "VpcId", "Protocol", "Port", "HealthCheckProtocol", "HealthCheckPort", "HealthCheckPath", "HealthCheckIntervalSeconds", "UnhealthyThresholdCount"]
+				},
+				{ service: "KMS",
+				api: "listAliases",
+				title: "KMS Aliases",
+				id: "kms-aliases",
+				jmespath: "Aliases",
+				headings: ["AliasArn", "AliasName", "TargetKeyId"]
+				},
+				{ service: "KMS",
+				api: "listKeys",
+				title: "KMS CMK Keys",
+				id: "kms-cmk-keys",
+				jmespath: "Keys",
+				headings: ["KeyId", "KeyArn"]
+				},
+				{ service: "Lambda",
+				api: "getAccountSettings",
+				title: "Lambda Account Usage",
+				id: "lambda-account-usage",
+				jmespath: "[AccountUsage]",
+				headings: ["TotalCodeSize", "FunctionCount"]
+				},
+				{ service: "Lambda",
+				api: "listEventSourceMappings",
+				title: "Lambda EventSource Mappings",
+				id: "lambda-event-source-mappings",
+				jmespath: "EventSourceMappings",
+				headings: ["UUID", "BatchSize", "EventSourceArn", "FunctionArn", "LastModified", "LastProcessingResult", "State", "StateTransitionReason"]
+				},
+				{ service: "Lambda",
+				api: "listFunctions",
+				title: "Lambda Functions",
+				id: "lambda-functions",
+				jmespath: "Functions",
+				headings: ["FunctionName", "FunctionArn", "Runtime", "Role", "Handler", "CodeSize", "Description", "Timeout", "MemorySize", "LastModified", "Version"]
+				},
+				{ service: "RDS",
+				api: "describeDBClusterParameterGroups",
+				title: "RDS DB Cluster Parameter Groups",
+				id: "rds-cluster-parameter-groups",
+				jmespath: "DBClusterParameterGroups",
+				headings: ["DBClusterParameterGroupName", "DBParameterGroupFamily", "Description"]
+				},
+				{ service: "RDS",
+				api: "describeDBClusters",
+				title: "RDS DB Clusters",
+				id: "rds-clusters",
+				jmespath: "DBClusters",
+				headings: ["AllocatedStorage", "AvailabilityZones", "BackupRetentionPeriod", "DatabaseName", "DBClusterIdentifier", "DBClusterParameterGroup", "Status", "MultiAZ", "Engine", "EngineVersion", "ClusterCreateTime"]
+				},
+				{ service: "RDS",
+				api: "describeDBInstances",
+				title: "RDS DB Instances",
+				id: "rds-db-instances",
+				jmespath: "DBInstances",
+				headings: ["DBInstanceIdentifier", "DBInstanceClass", "Engine", "EngineVersion", "DBInstanceStatus", "MasterUsername", "DBName", "AvailabilityZone", "MultiAZ", "LicenseModel", "StorageType"]
+				},
+				{ service: "RDS",
+				api: "describeDBSnapshots",
+				title: "RDS DB Snapshots",
+				id: "rds-db-snapshots",
+				jmespath: "DBSnapshots",
+				headings: ["DBSnapshotIdentifier", "DBInstanceIdentifier", "SnapshotCreateTime", "Engine", "AllocatedStorage", "Status", "AvailabilityZone", "VpcId", "EngineVersion"]
+				},
+				{ service: "RDS",
+				api: "describeDBSubnetGroups",
+				title: "RDS DB Subnet Groups",
+				id: "rds-db-subnet-groups",
+				jmespath: "DBSubnetGroups",
+				headings: ["DBSubnetGroupName", "DBSubnetGroupDescription", "VpcId", "SubnetGroupStatus", "DBSubnetGroupArn"]
+				},
+				{ service: "Route53Domains",
+				region: "us-east-1",
+				api: "listDomains",
+				title: "Route53 Domains",
+				id: "route53domains-domains",
+				jmespath: "Domains",
+				headings: ["DomainName", "AutoRenew", "TransferLock", "Expiry"]
+				},
+				{ service: "Route53Domains",
+				region: "us-east-1",
+				api: "listOperations",
+				title: "Route53 Domains Operations",
+				id: "route53domains-operations",
+				jmespath: "Operations",
+				headings: ["OperationId", "Status", "Type", "SubmittedDate"]
+				},
+				// { service: "S3", // https://github.com/aws/aws-sdk-js/issues/1939
+				//   api: "listBuckets",
+				//   title: "S3 Buckets",
+				//   id: "s3-buckets",
+				//   jmespath: "Buckets",
+				//   headings: ["Name", "CreationDate"]
+				// },
+				{ service: "SSM",
+				api: "describeParameters",
+				title: "Systems Manager Parameters",
+				id: "ssm-parameters",
+				jmespath: "Parameters",
+				headings: ["Name", "Type", "KeyId", "LastModifiedDate", "LastModifiedUser", "Description", "AllowedPattern", "Version"]
+				},
+				{ service: "SSM",
+				api: "describeOpsItems",
+				title: "Systems Manager OpsItems",
+				id: "ssm-opsitems",
+				params: { OpsItemFilters: [{ "Key" : "Status" , "Values": ["Open"], "Operator": "Equal"}]},
+				jmespath: "OpsItemSummaries",
+				headings: ["OpsItemId", "Severity", "Category", "Source", "Status", "LastModifiedTime", "OperationalData", "CreatedTime", "CreatedBy"]
+				},
+				{ service: "EC2",
+				api: "describeAddresses",
+				title: "EC2 Elastic IP Addresses",
+				id: "ec2-eips",
+				jmespath: "Addresses",
+				headings: ["InstanceId", "PublicIp", "AllocationId", "AssociationId", "Domain", "NetworkInterfaceId", "NetworkInterfaceOwnerId", "PrivateIpAddress", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeAvailabilityZones",
+				title: "EC2 Availability Zones",
+				id: "ec2-availability-zones",
+				jmespath: "AvailabilityZones",
+				headings: ["ZoneName", "State", "Messages[]"]
+				},
+				{ service: "EC2",
+				api: "describeCustomerGateways",
+				title: "EC2 VPC Customer Gateways",
+				id: "ec2-customer-gateways",
+				jmespath: "CustomerGateways",
+				headings: ["BgpAsn", "CustomerGatewayId", "IpAddress", "State", "Type", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeEgressOnlyInternetGateways",
+				title: "EC2 VPC Egress Internet Gateways",
+				id: "ec2-egress-inetgw",
+				jmespath: "EgressOnlyInternetGateways",
+				headings: ["EgressOnlyInternetGatewayId", "Attachments[].State"]
+				},
+				{ service: "EC2",
+				api: "describeFlowLogs",
+				title: "EC2 Flow Logs",
+				id: "ec2-flow-logs",
+				jmespath: "FlowLogs",
+				headings: ["CreationTime", "FlowLogId", "FlowLogStatus", "DeliverLogsStatus", "DeliverLogsErrorMessage", "TrafficType"]
+				},
+				{ service: "EC2",
+				api: "describeIamInstanceProfileAssociations",
+				title: "EC2 IAM Instance Profile Associations",
+				id: "ec2-iam-instance-profile-associations",
+				jmespath: "IamInstanceProfileAssociations",
+				headings: ["AssociationId", "InstanceId", "IamInstanceProfile.Id", "State", "Timestamp"]
+				},
+				{ service: "EC2",
+				api: "describeInstances",
+				title: "EC2 Instances",
+				id: "ec2-instances",
+				jmespath: "Reservations[].Instances",
+				headings: ["InstanceId", "InstanceType", "ImageId", "LaunchTime", "KeyName", "State.Name", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeInternetGateways",
+				title: "EC2 VPC Internet Gateways",
+				id: "ec2-internet-gateways",
+				jmespath: "InternetGateways",
+				headings: ["InternetGatewayId", "Attachments[].State", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeKeyPairs",
+				title: "EC2 SSH Key Pairs",
+				id: "ec2-ssh-keypairs",
+				jmespath: "KeyPairs",
+				headings: ["KeyName", "KeyFingerprint"]
+				},
+				{ service: "EC2",
+				api: "describeRouteTables",
+				title: "EC2 VPC Route Tables",
+				id: "ec2-route-tables",
+				jmespath: "RouteTables",
+				headings: ["RouteTableId", "VpcId", "Associations.Main", "Associations.SubnetId", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeSubnets",
+				title: "EC2 VPC Subnets",
+				id: "ec2-subnets",
+				jmespath: "Subnets",
+				headings: ["SubnetId", "VpcId", "State", "DefaultForAz", "AvailabilityZone", "AvailableIpAddressCount", "CidrBlock", "MapPublicIpOnLaunch", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeTags",
+				title: "EC2 Tags",
+				id: "ec2-tags",
+				jmespath: "Tags",
+				headings: ["ResourceType", "ResourceId", "Key", "Value"]
+				},
+				{ service: "EC2",
+				api: "describeVolumes",
+				title: "EC2 EBS Volumes",
+				id: "ec2-volumes",
+				jmespath: "Volumes",
+				headings: ["VolumeId", "VolumeType", "State", "Size", "AvailabilityZone", "CreateTime", "Attachments.InstanceId", "Attachments.DeleteOnTermination", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeVolumesModifications",
+				title: "EC2 EBS Volume Modifications",
+				id: "ec2-volume-modifications",
+				jmespath: "VolumesModifications",
+				headings: ["VolumeId", "ModificationState", "StatusMessage", "TargetSize", "TargetIops", "TargetVolumeType", "OriginalSize", "OriginalIops", "OriginalVolumeType", "Progress", "StartTime", "EndTime"]
+				},
+				{ service: "EC2",
+				api: "describeVpcClassicLink",
+				title: "EC2 VPC ClassicLink",
+				id: "ec2-vpc-classiclink",
+				jmespath: "Vpcs",
+				headings: ["VpcId", "ClassicLinkEnabled", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				{ service: "EC2",
+				api: "describeVpcEndpointConnections",
+				title: "EC2 VPC Endpoint Connections",
+				id: "ec2-vpc-endpoint-connections",
+				jmespath: "VpcEndpointConnections",
+				headings: ["ServiceId", "VpcEndpointId", "VpcEndpointOwner", "VpcEndpointState", "CreationTimestamp"]
+				},
+				{ service: "EC2",
+				api: "describeVpcEndpoints",
+				title: "EC2 VPC Endpoints",
+				id: "ec2-vpc-endpoints",
+				jmespath: "VpcEndpoints",
+				headings: ["VpcEndpointId", "VpcEndpointType", "VpcId", "ServiceName", "State", "CreationTimestamp"]
+				},
+				{ service: "EC2",
+				api: "describeVpcs",
+				title: "EC2 VPCs",
+				id: "ec2-vpcs",
+				jmespath: "Vpcs",
+				headings: ["VpcId", "State", "CidrBlock", "IsDefault", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				},
+				
+				{ service: "EC2",
+				api: "describeVpnGateways",
+				title: "EC2 VPN Gateways",
+				id: "ec2-vpn-gateways",
+				jmespath: "VpnGateways",
+				headings: ["VpnGatewayId", "AvailabilityZone", "State", "Type", "AmazonSideAsn", {"Tag:Name": 'Tags[?Key=="Name"].Value[]'}]
+				}
+			];
+
+			var tableTemplate =
+				`<div class="mb-1 col-12 collapse" data-parent="#aws-inventory">
+					<code>
+						<table class="table table-bordered table-hover table-sm">
+							<thead class="thead-light"></thead>
+							<tbody></tbody>
+						</table>
+					</code>
+				</div>`
+
+			var serviceButton =
+				`<a href="#" class="btn btn-sm btn-light col col-12 text-left mb-1" data-toggle="collapse" aria-expanded="false">
+					<span class="spinner spinner-border spinner-border-sm"></span>
+					<span class="counter badge badge-light" style="display:none">?</span>
+					&nbsp;<span class="title"></span><span class="timing badge font-weight-light" style="display:none"></span>
+				</a>`
+
+			function createTableHead(headings) {
+				const tr = $('<tr></tr>')
+				tr.append($('<th class="text-center">#</th>'))
+				for (let h=0; h<headings.length; h++) {
+				if (typeof headings[h] === 'string') {
+					tr.append($(`<th>${headings[h]}</th>`))
+				} else {
+					tr.append($(`<th>${Object.keys(headings[h])[0]}</th>`))
+				}
+
+				}
+				return tr
+			}
+
+			function createTableBody(headings, data) {
+				const rows = []
+				for (d=0; d<data.length; d++) {
+					const tr = $('<tr></tr>')
+					tr.append($(`<td class="text-center">${d + 1}</td>`))
+					for (let h=0; h<headings.length; h++) {
+						if (typeof headings[h] === 'string') {
+							try {
+								tr.append($(`<td>${jmespath.search(data[d], headings[h])}</td>`))
+							} catch (e) {
+								console.error(`Error with jmespath: ${headings[h]}: ${e.message}`)
+							}
+						} else {
+							try {
+								tr.append($(`<td>${jmespath.search(data[d], Object.values(headings[h])[0])}</td>`))
+							} catch (e) {
+								console.error(`Error with jmespath: ${Object.values(headings[h])[0]}: ${e.message}`)
+							}
+						}
+					}
+					rows.push(tr)
+				}
+				return rows
+			}
+
+			function inventoryServices() {
+				for (r=0; r<AWS_REGIONS.length; r++) {
+					let region = AWS_REGIONS[r];
+					for (let q=0; q<awsQueries.length; q++) {
+						const query = awsQueries[q]
+
+						if (region === 'global' && (!query.hasOwnProperty('region') || query.region !== 'global')) {
+							continue // show only global resources on global tab
+						}
+						if (region !== 'global' && query.hasOwnProperty('region') && query.region === 'global') {
+							continue // do not show global resources in other regions
+						}
+						if (query.hasOwnProperty('region') && query.region != region) {
+							continue // restrict to specific region only
+						}
+						if (query.hasOwnProperty('skip_regions') && query.skip_regions.includes(region)) {
+							continue // skip specified regions
+						}
+
+						const startTs = Date.now()
+						let caller
+						try {
+							caller = new AWS[query.service]({ region: region });
+						} catch (e) {
+							console.log(`Error using query.service ${query.service}: `, e.message)
+							continue
+						}
+						let content = $(tableTemplate);
+						content.attr('id', `region-${region}-${query.id}`);
+						let button = $(serviceButton);
+						button.attr('id', `btn-region-${region}-${query.id}`)
+						button.attr('data-target', `#region-${region}-${query.id}`);
+						button.attr('aria-controls', `region-${region}-${query.id}`);
+						button.find('.title').text(query.title);
+						$(`#region-${region}`).append([button, content]);
+						const showCounter = function(text, timing) {
+							button.find('.counter').text(text)
+							button.find('.timing').html(timing.toString().length < 3 ? `&mdash; ${timing}ms` : `&mdash; ${timing/1000}s`)
+							button.find('.spinner').hide()
+							button.find('.counter').show()
+							button.find('.timing').show()
+						}
+						const tableHandler = function(err, data) {
+							if (err) {
+								content.empty()
+								var alert = $(`<div class="alert alert-danger show my-2" role="alert"><strong>Error:</strong> ${err.message}</div>`)
+								content.append(alert);
+								button.removeClass('btn-light').addClass('btn-warning')
+								showCounter('X', Date.now() - startTs)
+								return false
+							}
+							let information
+							try {
+								information = jmespath.search(data, `${query.jmespath}[]`)
+							} catch (e) {
+								console.error(`Error with jmespath: ${query.jmespath}[]: ${e.message}`)
+							}
+							if (!information) {
+								button.removeClass('btn-light').addClass('btn-warning')
+								showCounter('0', Date.now() - startTs)
+								return false
+							}
+							
+							if (information.length > 0) {
+								// button.find('.btn-outline-primary').removeClass('btn-outline-primary').addClass('btn-primary')
+								button.removeClass('btn-light').addClass('btn-success')
+								content.find('thead').append(createTableHead(query.headings))
+								content.find('tbody').append(createTableBody(query.headings, information))
+							}
+							showCounter(information.length, Date.now() - startTs)
+							}
+							if (query.hasOwnProperty('params')) {
+							caller[query.api].call(caller, query.params, tableHandler)
+							} else {
+							try {
+								caller[query.api].call(caller, tableHandler)
+							} catch (e) {
+								console.error(`Error calling ${query.service}.${query.api}: ${e.message}`)
+							}
+						}
+					}
+				}
+			}
+
+			function contentRegionsCreate() {
+				var ec2 = new AWS.EC2()
+				var tabs = []
+				var tabPanes = []
+				
+				ec2.describeRegions(function(err, data) {
+					$('#aws-region-tabs').empty()
+					$('#aws-inventory').empty()
+					let regions = data.Regions.map(function(r){ return r.RegionName }).sort();
+					regions = ["global"].concat(regions);
+					window.AWS_REGIONS = regions;
+					for (var i=0; i<regions.length; i++) {
+						tabs.push( $(`<li class="nav-item"><a href="#region-${regions[i]}" id="tab-region-${regions[i]}" class="nav-link" data-toggle="pill" role="tab">${regions[i]}</a></li>`) );
+						tabPanes.push( $(`<div class="tab-pane show" id="region-${regions[i]}" role="tabpanel" aria-labelledby="tab-region-${regions[i]}"></div>`) )
+					}
+					$('#aws-region-tabs').append(tabs);
+					$('#aws-inventory').append(tabPanes);
+					inventoryServices()
+					$('#tab-region-'+regions[0]).tab('show');
+				})
+			}
+
+			function credentialsFailAlert(message) {
+				var closeButton = $(`<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>`)
+				var alert = $(`<div class="alert alert-danger alert-dismissible show my-2" role="alert"><strong>Error verifying credentials.</strong> ${message}</div>`)
+				alert.append(closeButton);
+				$('#alerts').append(alert);
+			}
+
+			function verifyAWSCredentials(event) {
+					$('#verify-aws-credentials').prop('disabled', true);
+					AWS.config.region = 'us-east-1'
+					const credentials = {
+						accessKeyId: $('#aws-access-key-id').val(),
+						secretAccessKey: $('#aws-access-secret-key').val(),
+					}
+
+					AWS.config.credentials = new AWS.Credentials(credentials)
+					var sts = new AWS.STS()
+					sts.getCallerIdentity(function(err, data) {
+						event.preventDefault();
+						if (err) {
+							$('#verify-aws-credentials').prop('disabled', false);
+							credentialsFailAlert(err.message);
+							return false
+						}
+						$('#aws-credentials-arn').val(data.Arn);
+						$('.alert').alert('close');
+						$('#aws-credentials').hide();
+						$('#verify-aws-credentials').prop('disabled', false);
+						$('#aws-credentials-arn-form').show();
+						$('#aws-credentials input').val('');
+						contentRegionsCreate();
+					})
+				return false
+			}
+
+			function credentialsDrop() {
+				AWS.config.credentials = undefined
+				$('#aws-credentials-arn-form').hide()
+				$('#verify-aws-credentials').prop('disabled', false);
+				$('#aws-credentials').show()
+				$('#aws-region-tabs').empty()
+				$('#aws-inventory').empty()
+			}
+
+			$('#verify-aws-credentials').on('click', verifyAWSCredentials);
+			$('#aws-credentials-drop').on('click', credentialsDrop);
+			$('#btn-advanced').on('click', function(){ $('#aws-session').show(); $('#aws-advanced').show(); $('#btn-advanced').hide() })
+		});
+	</script>
+</html>
